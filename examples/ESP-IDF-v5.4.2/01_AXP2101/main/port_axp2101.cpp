@@ -26,21 +26,21 @@ esp_err_t pmu_init()
     }
 
     // Turn off not use power channel
-    PMU.disableDC2();
-    PMU.disableDC3();
-    PMU.disableDC4();
-    PMU.disableDC5();
+    // PMU.disableDC2();
+    // PMU.disableDC3();
+    // PMU.disableDC4();
+    // PMU.disableDC5();
 
-    PMU.disableALDO1();
-    PMU.disableALDO2();
-    PMU.disableALDO3();
-    PMU.disableALDO4();
-    PMU.disableBLDO1();
-    PMU.disableBLDO2();
+    // PMU.disableALDO1();
+    // PMU.disableALDO2();
+    // PMU.disableALDO3();
+    // PMU.disableALDO4();
+    // PMU.disableBLDO1();
+    // PMU.disableBLDO2();
 
-    PMU.disableCPUSLDO();
-    PMU.disableDLDO1();
-    PMU.disableDLDO2();
+    // PMU.disableCPUSLDO();
+    // PMU.disableDLDO1();
+    // PMU.disableDLDO2();
 
     // ESP32s3 Core VDD
     // PMU.setDC3Voltage(3300);
@@ -75,11 +75,11 @@ esp_err_t pmu_init()
     // PMU.setBLDO2Voltage(3300);
     // PMU.enableBLDO2();
 
-    PMU.setDC1Voltage(3300);
-    PMU.enableDC1();
+    // PMU.setDC1Voltage(3300);
+    // PMU.enableDC1();
 
-    PMU.setALDO1Voltage(3300);
-    PMU.enableALDO1();
+    // PMU.setALDO1Voltage(3300);
+    // PMU.enableALDO1();
 
     ESP_LOGI(TAG, "DCDC=======================================================================\n");
     ESP_LOGI(TAG, "DC1  : %s   Voltage:%u mV \n", PMU.isEnableDC1() ? "+" : "-", PMU.getDC1Voltage());
