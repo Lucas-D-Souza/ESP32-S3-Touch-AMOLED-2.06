@@ -13,6 +13,7 @@
 #define ESP_UTILS_LOG_TAG "Main"
 #include "esp_lib_utils.h"
 #include "./dark/stylesheet.hpp"
+#include "watchface.hpp"
 
 using namespace esp_brookesia;
 using namespace esp_brookesia::gui;
@@ -61,7 +62,7 @@ extern "C" void app_main(void)
 
     /* Try using a stylesheet that corresponds to the resolution */
     if ((BSP_LCD_H_RES == 410) && (BSP_LCD_V_RES == 502)) {
-        Stylesheet *stylesheet = new (std::nothrow) Stylesheet(STYLESHEET_410_502_DARK);
+        Stylesheet *stylesheet = new (std::nothrow) Stylesheet(MEU_RELOGIO_DARK_STYLESHEET());
         ESP_UTILS_CHECK_NULL_EXIT(stylesheet, "Create stylesheet failed");
 
         ESP_UTILS_LOGI("Using stylesheet (%s)", stylesheet->core.name);
@@ -77,6 +78,15 @@ extern "C" void app_main(void)
         /* Begin the phone */
         ESP_UTILS_CHECK_FALSE_EXIT(phone->begin(), "Begin failed");
         // assert(phone->getDisplay().showContainerBorder() && "Show container border failed");
+
+        // Pegamos a tela inicial/fundo padrão do display do brookesia
+        lv_obj_t* main_screen = phone->getDisplay().getMainScreen(); 
+        
+        // Se o Brookesia não expor um getHomeScreen() diretamente, você pode usar:
+        // lv_obj_t* home_screen = lv_scr_act(); 
+        
+        Watchface *my_watchface = new Watchface(main_screen);
+        (void)my_watchface;
 
         /* Init and install apps from registry */
         std::vector<systems::base::Manager::RegistryAppInfo> inited_apps;

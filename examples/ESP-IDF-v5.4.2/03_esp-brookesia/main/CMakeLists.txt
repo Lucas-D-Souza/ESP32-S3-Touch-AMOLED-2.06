@@ -1,5 +1,5 @@
 idf_component_register(
-    SRCS "main.cpp"
+    SRCS "main.cpp" "watchface.cpp"
     INCLUDE_DIRS ".")
 
 target_compile_options(${COMPONENT_LIB} PUBLIC -Wno-missing-field-initializers)

@@ -1,0 +1,13 @@
+# Target labels
+ bootloader
+# Source files and their labels
+C:/repositorios/ESP32-S3-Touch-AMOLED-2.06/examples/ESP-IDF-v5.4.2/03_esp-brookesia/build/CMakeFiles/bootloader
+C:/repositorios/ESP32-S3-Touch-AMOLED-2.06/examples/ESP-IDF-v5.4.2/03_esp-brookesia/build/CMakeFiles/bootloader.rule
+C:/repositorios/ESP32-S3-Touch-AMOLED-2.06/examples/ESP-IDF-v5.4.2/03_esp-brookesia/build/CMakeFiles/bootloader-complete.rule
+C:/repositorios/ESP32-S3-Touch-AMOLED-2.06/examples/ESP-IDF-v5.4.2/03_esp-brookesia/build/bootloader-prefix/src/bootloader-stamp/bootloader-build.rule
+C:/repositorios/ESP32-S3-Touch-AMOLED-2.06/examples/ESP-IDF-v5.4.2/03_esp-brookesia/build/bootloader-prefix/src/bootloader-stamp/bootloader-configure.rule
+C:/repositorios/ESP32-S3-Touch-AMOLED-2.06/examples/ESP-IDF-v5.4.2/03_esp-brookesia/build/bootloader-prefix/src/bootloader-stamp/bootloader-download.rule
+C:/repositorios/ESP32-S3-Touch-AMOLED-2.06/examples/ESP-IDF-v5.4.2/03_esp-brookesia/build/bootloader-prefix/src/bootloader-stamp/bootloader-install.rule
+C:/repositorios/ESP32-S3-Touch-AMOLED-2.06/examples/ESP-IDF-v5.4.2/03_esp-brookesia/build/bootloader-prefix/src/bootloader-stamp/bootloader-mkdir.rule
+C:/repositorios/ESP32-S3-Touch-AMOLED-2.06/examples/ESP-IDF-v5.4.2/03_esp-brookesia/build/bootloader-prefix/src/bootloader-stamp/bootloader-patch.rule
+C:/repositorios/ESP32-S3-Touch-AMOLED-2.06/examples/ESP-IDF-v5.4.2/03_esp-brookesia/build/bootloader-prefix/src/bootloader-stamp/bootloader-update.rule

@@ -10,7 +10,7 @@
 
 namespace esp_brookesia::systems::phone {
 
-constexpr uint32_t STYLESHEET_410_502_DARK_CORE_DISPLAY_BG_COLOR = 0x1A1A1A;
+constexpr uint32_t STYLESHEET_410_502_DARK_CORE_DISPLAY_BG_COLOR = 0x000000;
 
 constexpr base::Display::Data STYLESHEET_410_502_DARK_CORE_DISPLAY_DATA = {
     .background = {
