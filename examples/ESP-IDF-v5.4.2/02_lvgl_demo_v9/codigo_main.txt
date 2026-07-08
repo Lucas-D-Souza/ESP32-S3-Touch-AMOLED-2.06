@@ -1,0 +1,67 @@
+﻿
+=== ARQUIVO: main/ ===
+
+set(LV_DEMO_DIR ../managed_components/lvgl__lvgl/demos)
+file(GLOB_RECURSE LV_DEMOS_SOURCES ${LV_DEMO_DIR}/*.c)
+
+idf_component_register(
+    SRCS main.c ${LV_DEMOS_SOURCES}
+    INCLUDE_DIRS . ${LV_DEMO_DIR})
+
+idf_component_get_property(LVGL_LIB lvgl__lvgl COMPONENT_LIB)
+target_compile_options(
+    ${LVGL_LIB} 
+    PRIVATE
+        -DLV_LVGL_H_INCLUDE_SIMPLE
+        -DLV_USE_DEMO_MUSIC
+)
+
+
+=== ARQUIVO: main/ ===
+
+#
+# "main" pseudo-component makefile.
+#
+# (Uses default behaviour of compiling all source files in directory, adding 'include' to include path.)
+
+
+
+=== ARQUIVO: main/ ===
+
+## IDF Component Manager Manifest File
+dependencies:
+  waveshare/esp32_s3_touch_amoled_2_06:
+    version: "*"
+  lvgl/lvgl:
+    version: "9.2.0"
+    public: true
+
+
+=== ARQUIVO: main/ ===
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "nvs_flash.h"
+#include "nvs.h"
+#include "esp_log.h"
+#include "esp_err.h"
+#include "esp_check.h"
+#include "esp_memory_utils.h"
+#include "lvgl.h"
+#include "bsp/esp-bsp.h"
+#include "bsp/display.h"
+#include "lv_demos.h"
+
+void app_main(void)
+{
+
+    bsp_display_start();
+
+    bsp_display_lock(0);
+
+    lv_demo_music();
+    // lv_demo_benchmark();
+    // lv_demo_widgets();
+
+    bsp_display_unlock();
+}
