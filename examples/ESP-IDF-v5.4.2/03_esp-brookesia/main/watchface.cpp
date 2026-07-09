@@ -1,6 +1,7 @@
 #include "watchface.hpp"
 #include "systems/phone/assets/esp_brookesia_phone_assets.h"
-#include "driver/i2c.h" 
+#include "bsp/esp-bsp.h"           // Acesso ao hardware base da placa
+#include "driver/i2c_master.h"     // NOVA API I2C do ESP-IDF (driver_ng)
 #include <sys/time.h>   
 #include <cstring> 
 #include <cstdio>  
@@ -8,25 +9,34 @@
 #define BOOT_BUTTON_PIN GPIO_NUM_0
 #define PCF85063_I2C_ADDR 0x51 
 
+// Handle global estático apenas para este arquivo (evita conflitos no header)
+static i2c_master_dev_handle_t rtc_handle = NULL;
+
 static uint8_t bcd2dec(uint8_t val) { return (val >> 4) * 10 + (val & 0x0f); }
 static uint8_t dec2bcd(uint8_t val) { return ((val / 10) << 4) + (val % 10); }
 
+// Inicializa o RTC "pegando carona" no barramento I2C que a placa já ativou
+static void init_rtc() {
+    if (rtc_handle != NULL) return;
+    
+    i2c_device_config_t dev_cfg = {
+        .dev_addr_length = I2C_ADDR_BIT_LEN_7,
+        .device_address = PCF85063_I2C_ADDR,
+        .scl_speed_hz = 100000,
+    };
+    
+    // bsp_i2c_get_handle() puxa o I2C master nativo da Waveshare
+    i2c_master_bus_add_device(bsp_i2c_get_handle(), &dev_cfg, &rtc_handle);
+}
+
 bool Watchface::readTimeFromRTC(struct tm* timeinfo) {
-    i2c_port_t i2c_num = I2C_NUM_0; 
+    if (rtc_handle == NULL) return false;
+
     uint8_t reg_addr = 0x04; 
     uint8_t data[7]; 
 
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (PCF85063_I2C_ADDR << 1) | I2C_MASTER_WRITE, true);
-    i2c_master_write_byte(cmd, reg_addr, true);
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (PCF85063_I2C_ADDR << 1) | I2C_MASTER_READ, true);
-    i2c_master_read(cmd, data, 7, I2C_MASTER_LAST_NACK);
-    i2c_master_stop(cmd);
-    
-    esp_err_t ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_PERIOD_MS);
-    i2c_cmd_link_delete(cmd);
+    // Lê 7 bytes a partir do registrador 0x04
+    esp_err_t ret = i2c_master_transmit_receive(rtc_handle, &reg_addr, 1, data, 7, 1000);
 
     if (ret == ESP_OK) {
         timeinfo->tm_sec  = bcd2dec(data[0] & 0x7F);
@@ -41,6 +51,8 @@ bool Watchface::readTimeFromRTC(struct tm* timeinfo) {
 }
 
 Watchface::Watchface(lv_obj_t* parent) {
+    // 1. Inicializa comunicação e puxa o tempo físico
+    init_rtc();
     struct tm rtc_time = {0};
     if (readTimeFromRTC(&rtc_time)) {
         struct timeval tv;
@@ -49,6 +61,7 @@ Watchface::Watchface(lv_obj_t* parent) {
         settimeofday(&tv, NULL);
     }
 
+    // 2. Configura botão BOOT
     gpio_config_t io_conf = {};
     io_conf.intr_type = GPIO_INTR_DISABLE;
     io_conf.mode = GPIO_MODE_INPUT;
@@ -59,6 +72,7 @@ Watchface::Watchface(lv_obj_t* parent) {
     
     last_button_state = true; 
 
+    // 3. Montagem da Watchface (Visual)
     main_container = lv_obj_create(parent);
     lv_obj_set_size(main_container, LV_PCT(100), LV_PCT(100));
     lv_obj_set_style_bg_color(main_container, lv_color_hex(0x000000), LV_PART_MAIN);
@@ -74,7 +88,7 @@ Watchface::Watchface(lv_obj_t* parent) {
     lv_obj_set_style_transform_scale(time_label, 600, LV_PART_MAIN);
     lv_obj_set_style_text_align(time_label, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_text(time_label, "00:00");
-    lv_obj_align(time_label, LV_ALIGN_CENTER, -40, -40); 
+    lv_obj_align(time_label, LV_ALIGN_CENTER, -80, -40); 
 
     date_label = lv_label_create(main_container);
     lv_obj_set_style_text_font(date_label, &esp_brookesia_font_maison_neue_book_24, LV_PART_MAIN);
@@ -82,7 +96,7 @@ Watchface::Watchface(lv_obj_t* parent) {
     lv_label_set_text(date_label, "01/01/2026");
     lv_obj_align(date_label, LV_ALIGN_CENTER, 0, 90); 
 
-    // --- TELA DE AJUSTES ---
+    // 4. Montagem do Menu de Ajustes
     settings_container = lv_obj_create(parent);
     lv_obj_set_size(settings_container, LV_PCT(100), LV_PCT(100));
     lv_obj_set_style_bg_color(settings_container, lv_color_hex(0x0A0A0A), 0);
@@ -94,7 +108,6 @@ Watchface::Watchface(lv_obj_t* parent) {
     lv_obj_set_style_text_color(title, lv_color_hex(0xFFFFFF), 0);
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 20);
 
-    // Aumento agressivo dos buffers para evitar overflow
     static char opts_d[120], opts_mo[50], opts_y[150];
     static char opts_h[100], opts_m[200];
     opts_d[0] = '\0'; opts_mo[0] = '\0'; opts_y[0] = '\0'; opts_h[0] = '\0'; opts_m[0] = '\0';
@@ -105,55 +118,38 @@ Watchface::Watchface(lv_obj_t* parent) {
     for(int i=0; i<24; i++) sprintf(opts_h + strlen(opts_h), "%02d\n", i);
     for(int i=0; i<60; i++) sprintf(opts_m + strlen(opts_m), "%02d\n", i);
     
-    opts_d[strlen(opts_d)-1] = '\0'; opts_mo[strlen(opts_m)-1] = '\0';
-    opts_y[strlen(opts_y)-1] = '\0'; opts_h[strlen(opts_h)-1] = '\0'; opts_m[strlen(opts_m)-1] = '\0';
+    opts_d[strlen(opts_d)-1] = '\0'; opts_mo[strlen(opts_mo)-1] = '\0';
+    opts_y[strlen(opts_y)-1] = '\0'; opts_h[strlen(opts_h)-1] = '\0'; 
+    opts_m[strlen(opts_m)-1] = '\0';
 
-    // Seção de Data
     roller_day = lv_roller_create(settings_container);
     lv_roller_set_options(roller_day, opts_d, LV_ROLLER_MODE_INFINITE);
     lv_roller_set_visible_row_count(roller_day, 3);
     lv_obj_align(roller_day, LV_ALIGN_CENTER, -100, -80);
-    lv_obj_t * lbl_d = lv_label_create(settings_container);
-    lv_label_set_text(lbl_d, "Dia");
-    lv_obj_align_to(lbl_d, roller_day, LV_ALIGN_OUT_TOP_MID, 0, -5);
 
     roller_month = lv_roller_create(settings_container);
     lv_roller_set_options(roller_month, opts_mo, LV_ROLLER_MODE_INFINITE);
     lv_roller_set_visible_row_count(roller_month, 3);
     lv_obj_align(roller_month, LV_ALIGN_CENTER, 0, -80);
-    lv_obj_t * lbl_mo = lv_label_create(settings_container);
-    lv_label_set_text(lbl_mo, "Mes");
-    lv_obj_align_to(lbl_mo, roller_month, LV_ALIGN_OUT_TOP_MID, 0, -5);
 
     roller_year = lv_roller_create(settings_container);
     lv_roller_set_options(roller_year, opts_y, LV_ROLLER_MODE_INFINITE);
     lv_roller_set_visible_row_count(roller_year, 3);
     lv_obj_align(roller_year, LV_ALIGN_CENTER, 100, -80);
-    lv_obj_t * lbl_y = lv_label_create(settings_container);
-    lv_label_set_text(lbl_y, "Ano");
-    lv_obj_align_to(lbl_y, roller_year, LV_ALIGN_OUT_TOP_MID, 0, -5);
 
-    // Seção de Hora
     roller_hour = lv_roller_create(settings_container);
     lv_roller_set_options(roller_hour, opts_h, LV_ROLLER_MODE_INFINITE);
     lv_roller_set_visible_row_count(roller_hour, 3);
-    lv_obj_align(roller_hour, LV_ALIGN_CENTER, -50, 80);
-    lv_obj_t * lbl_h = lv_label_create(settings_container);
-    lv_label_set_text(lbl_h, "Hora");
-    lv_obj_align_to(lbl_h, roller_hour, LV_ALIGN_OUT_TOP_MID, 0, -5);
+    lv_obj_align(roller_hour, LV_ALIGN_CENTER, -60, 40);
 
     roller_minute = lv_roller_create(settings_container);
     lv_roller_set_options(roller_minute, opts_m, LV_ROLLER_MODE_INFINITE);
     lv_roller_set_visible_row_count(roller_minute, 3);
-    lv_obj_align(roller_minute, LV_ALIGN_CENTER, 50, 80);
-    lv_obj_t * lbl_m = lv_label_create(settings_container);
-    lv_label_set_text(lbl_m, "Min");
-    lv_obj_align_to(lbl_m, roller_minute, LV_ALIGN_OUT_TOP_MID, 0, -5);
+    lv_obj_align(roller_minute, LV_ALIGN_CENTER, 60, 40);
 
-    // Botão de Salvar
     lv_obj_t * save_btn = lv_btn_create(settings_container);
     lv_obj_set_size(save_btn, 120, 50);
-    lv_obj_align(save_btn, LV_ALIGN_BOTTOM_MID, 0, -20);
+    lv_obj_align(save_btn, LV_ALIGN_BOTTOM_MID, 0, -30);
     lv_obj_t * save_label = lv_label_create(save_btn);
     lv_label_set_text(save_label, "Salvar");
     lv_obj_center(save_label);
@@ -169,7 +165,6 @@ Watchface::~Watchface() {
     if (time_timer) lv_timer_del(time_timer);
     if (button_timer) lv_timer_del(button_timer);
     if (main_container) lv_obj_del(main_container);
-    if (rtc_handle) i2c_master_bus_rm_device(rtc_handle);
 }
 
 void Watchface::updateTime() {
@@ -199,7 +194,6 @@ void Watchface::showSettings() {
     time(&now);
     localtime_r(&now, &timeinfo);
     
-    // Atualiza todos os rollers para o tempo atual do sistema
     lv_roller_set_selected(roller_day, timeinfo.tm_mday - 1, LV_ANIM_OFF);
     lv_roller_set_selected(roller_month, timeinfo.tm_mon, LV_ANIM_OFF);
     
@@ -219,7 +213,7 @@ void Watchface::hideSettings() {
 
 void Watchface::saveTime() {
     int d = lv_roller_get_selected(roller_day) + 1;
-    int mo = lv_roller_get_selected(roller_month); // 0-11
+    int mo = lv_roller_get_selected(roller_month); 
     int y = lv_roller_get_selected(roller_year) + 2024;
     int h = lv_roller_get_selected(roller_hour);
     int m = lv_roller_get_selected(roller_minute);
@@ -232,8 +226,7 @@ void Watchface::saveTime() {
     timeinfo.tm_min = m;
     timeinfo.tm_sec = 0;
     
-    // Opcional: Calcular o dia da semana correto usando mktime
-    mktime(&timeinfo);
+    mktime(&timeinfo); 
 
     struct timeval tv;
     tv.tv_sec = mktime(&timeinfo);
@@ -250,8 +243,9 @@ void Watchface::saveTime() {
         write_buf[4] = dec2bcd(timeinfo.tm_mday);  
         write_buf[5] = timeinfo.tm_wday;  
         write_buf[6] = dec2bcd(timeinfo.tm_mon + 1);
-        write_buf[7] = dec2bcd(y - 2000); // Ex: 2026 -> 26
+        write_buf[7] = dec2bcd(y - 2000); 
 
+        // Transmite o buffer inteiro num único comando (Nova API)
         i2c_master_transmit(rtc_handle, write_buf, 8, 1000);
     }
 
@@ -270,13 +264,10 @@ void Watchface::button_timer_cb(lv_timer_t * t) {
 
     bool current_state = gpio_get_level(BOOT_BUTTON_PIN);
     
-    // Botão BOOT foi pressionado
     if (wf->last_button_state == true && current_state == false) {
         if (!lv_obj_has_flag(wf->settings_container, LV_OBJ_FLAG_HIDDEN)) {
-            // Se as configurações estiverem abertas, apenas fecha sem salvar
             wf->hideSettings();
         } else {
-            // Se estiver na tela normal, alterna para o menu do Brookesia
             wf->toggleVisibility();
         }
     }

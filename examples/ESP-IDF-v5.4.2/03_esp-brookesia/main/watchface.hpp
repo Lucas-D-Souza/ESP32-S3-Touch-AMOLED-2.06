@@ -25,7 +25,6 @@ private:
 
     bool last_button_state;
 
-    // Componentes da Tela de Ajustes
     lv_obj_t* settings_container;
     lv_obj_t* roller_hour;
     lv_obj_t* roller_minute;
